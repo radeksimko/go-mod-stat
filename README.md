@@ -5,7 +5,7 @@ To list which dependencies are not go-mod-aware and _may_ cause version conflict
 ## Usage
 
 ```
-$ go-mod-stat
+$ go-mod-stat # run in a folder with go.mod
 ```
 
 ## Example output
