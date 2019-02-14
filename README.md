@@ -2,6 +2,11 @@
 
 To list which dependencies are not go-mod-aware and _may_ cause version conflicts during upgrades.
 
+## Caveats
+
+Go tooling refuses to download module versions which are normally not donwloadable/discoverable via `go get -u` (semver-based update).
+This means that module's `master` may already have `go.mod`, but is not discoverable/updatable yet as it's awaiting a new release.
+
 ## Usage
 
 ```
