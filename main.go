@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/mitchellh/colorstring"
 	"github.com/radeksimko/go-mod-stat/go-src/cmd/go/_internal/modfile"
 )
 
@@ -55,22 +56,62 @@ func main() {
 	for _, r := range f.Require {
 		m := r.Mod
 
-		outBuffer, _, err := goCmd("list", "-json", "-m", m.Path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		module := Module{}
-		err = json.Unmarshal(outBuffer.Bytes(), &module)
+		module, err := getModuleData(m.Path, "")
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		if !module.Indirect {
+			if module.Dir == "" {
+				_, _, err := goCmd("mod", "download", "-json", m.Path)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+
 			if _, err = os.Stat(filepath.Join(module.Dir, "go.mod")); os.IsNotExist(err) {
-				fmt.Printf("%s @ %s is not module-aware\n", module.Path, module.Version)
+				colorstring.Printf("%s @ %s is [bold][red]module-unaware[reset]", module.Path, module.Version)
+
+				if module.Update != nil {
+					// Check go.mod in latest version if update is available
+					mu := module.Update
+					_, _, err := goCmd("mod", "download", "-json", mu.Path+"@"+mu.Version)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					uModule, err := getModuleData(mu.Path, mu.Version)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					if _, err = os.Stat(filepath.Join(uModule.Dir, "go.mod")); err == nil {
+						colorstring.Printf(" [bold][yellow](updatable to %s)[reset]", uModule.Version)
+					}
+				}
+
+				fmt.Println("")
 			}
 		}
 	}
+}
+
+func getModuleData(path, version string) (*Module, error) {
+	pkgId := path
+	if version != "" {
+		pkgId += "@" + version
+	}
+
+	outBuffer, _, err := goCmd("list", "-json", "-u", "-m", pkgId)
+	if err != nil {
+		return nil, err
+	}
+	module := Module{}
+	err = json.Unmarshal(outBuffer.Bytes(), &module)
+	if err != nil {
+		return nil, err
+	}
+	return &module, nil
 }
 
 func goCmd(args ...string) (*bytes.Buffer, string, error) {
