@@ -75,9 +75,9 @@ func main() {
 				if module.Update != nil {
 					// Check go.mod in latest version if update is available
 					mu := module.Update
-					_, _, err := goCmd("mod", "download", "-json", mu.Path+"@"+mu.Version)
+					_, stdErr, err := goCmd("mod", "download", "-json", mu.Path+"@"+mu.Version)
 					if err != nil {
-						log.Fatal(err)
+						log.Fatalf("%s\n%s", err, stdErr)
 					}
 
 					uModule, err := getModuleData(mu.Path, mu.Version)
@@ -124,7 +124,7 @@ func goCmd(args ...string) (*bytes.Buffer, string, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		return nil, stderr.String(), err
+		return nil, stderr.String(), fmt.Errorf("%q: %s", args, err)
 	}
 
 	return &stdout, stderr.String(), nil
