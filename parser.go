@@ -15,7 +15,11 @@ import (
 	"github.com/radeksimko/go-mod-stat/go-src/cmd/go/_internal/module"
 )
 
-func parseModfile(path string, outputWriter io.Writer) error {
+type Parser struct {
+	OutputWriter io.Writer
+}
+
+func (p *Parser) ParseModfile(path string) error {
 	// Parse go modules file
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -27,7 +31,7 @@ func parseModfile(path string, outputWriter io.Writer) error {
 	}
 
 	for _, r := range f.Require {
-		err := parseModuleVersionRequirement(r.Mod, outputWriter)
+		err := p.parseModuleVersionRequirement(r.Mod)
 		if err != nil {
 			return err
 		}
@@ -36,43 +40,49 @@ func parseModfile(path string, outputWriter io.Writer) error {
 	return nil
 }
 
-func parseModuleVersionRequirement(mv module.Version, w io.Writer) error {
+func (p *Parser) parseModuleVersionRequirement(mv module.Version) error {
 	mod, err := getModuleData(mv.Path, "")
 	if err != nil {
 		return err
 	}
 
-	if !mod.Indirect {
-		if mod.Dir == "" {
-			_, _, err := goCmd("mod", "download", "-json", mv.Path)
+	if mod.Indirect {
+		// Skip indirect dependency
+		return nil
+	}
+
+	if mod.Dir == "" {
+		_, _, err := goCmd("mod", "download", "-json", mv.Path)
+		if err != nil {
+			return err
+		}
+		// Retry after downloading missing module
+		return p.parseModuleVersionRequirement(mv)
+	}
+
+	if _, err = os.Stat(filepath.Join(mod.Dir, "go.mod")); os.IsNotExist(err) {
+		colorstring.Fprintf(p.OutputWriter, "%s @ %s is [bold][red]module-unaware[reset]", mod.Path, mod.Version)
+
+		if mod.Update != nil {
+			// Check go.mod in latest version if update is available
+			mu := mod.Update
+			_, stdErr, err := goCmd("mod", "download", "-json", mu.Path+"@"+mu.Version)
+			if err != nil {
+				return fmt.Errorf("%s\n%s", err, stdErr)
+			}
+
+			uMod, err := getModuleData(mu.Path, mu.Version)
 			if err != nil {
 				return err
 			}
-		}
 
-		if _, err = os.Stat(filepath.Join(mod.Dir, "go.mod")); os.IsNotExist(err) {
-			colorstring.Fprintf(w, "%s @ %s is [bold][red]module-unaware[reset]", mod.Path, mod.Version)
-
-			if mod.Update != nil {
-				// Check go.mod in latest version if update is available
-				mu := mod.Update
-				_, stdErr, err := goCmd("mod", "download", "-json", mu.Path+"@"+mu.Version)
-				if err != nil {
-					return fmt.Errorf("%s\n%s", err, stdErr)
-				}
-
-				uMod, err := getModuleData(mu.Path, mu.Version)
-				if err != nil {
-					return err
-				}
-
-				if _, err = os.Stat(filepath.Join(uMod.Dir, "go.mod")); err == nil {
-					colorstring.Fprintf(w, " [bold][yellow](updatable to %s)[reset]", uMod.Version)
-				}
+			if _, err = os.Stat(filepath.Join(uMod.Dir, "go.mod")); err == nil {
+				colorstring.Fprintf(p.OutputWriter, " [bold][yellow](updatable to %s)[reset]", uMod.Version)
 			}
-			fmt.Println("")
 		}
+		fmt.Println("")
 	}
+
 	return nil
 }
 

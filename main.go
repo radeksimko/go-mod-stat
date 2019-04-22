@@ -17,7 +17,8 @@ func main() {
 	flag.StringVar(&path, "modfile", defaultPath, "Path to go.mod")
 	flag.Parse()
 
-	err = parseModfile(path, os.Stdout)
+	p := &Parser{OutputWriter: os.Stdout}
+	err = p.ParseModfile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
