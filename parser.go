@@ -41,7 +41,7 @@ func (p *Parser) ParseModfile(path string) error {
 }
 
 func (p *Parser) parseModuleVersionRequirement(mv module.Version) error {
-	mod, err := getModuleData(mv.Path, "")
+	mod, err := goListModules(mv.Path)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (p *Parser) parseModuleVersionRequirement(mv module.Version) error {
 	}
 
 	if mod.Dir == "" {
-		_, _, err := goCmd("mod", "download", "-json", mv.Path)
+		err := goModDownload(mv.Path)
 		if err != nil {
 			return err
 		}
@@ -66,12 +66,12 @@ func (p *Parser) parseModuleVersionRequirement(mv module.Version) error {
 		if mod.Update != nil {
 			// Check go.mod in latest version if update is available
 			mu := mod.Update
-			_, stdErr, err := goCmd("mod", "download", "-json", mu.Path+"@"+mu.Version)
+			err := goModDownload(mu.Path + "@" + mu.Version)
 			if err != nil {
-				return fmt.Errorf("%s\n%s", err, stdErr)
+				return err
 			}
 
-			uMod, err := getModuleData(mu.Path, mu.Version)
+			uMod, err := goListModules(mu.Path + "@" + mu.Version)
 			if err != nil {
 				return err
 			}
@@ -86,12 +86,15 @@ func (p *Parser) parseModuleVersionRequirement(mv module.Version) error {
 	return nil
 }
 
-func getModuleData(path, version string) (*Module, error) {
-	pkgId := path
-	if version != "" {
-		pkgId += "@" + version
+func goModDownload(pkgId string) error {
+	_, stdErr, err := goCmd("mod", "download", "-json", pkgId)
+	if err != nil {
+		return fmt.Errorf("%s\n%s", err, stdErr)
 	}
+	return nil
+}
 
+func goListModules(pkgId string) (*Module, error) {
 	outBuffer, _, err := goCmd("list", "-json", "-u", "-m", pkgId)
 	if err != nil {
 		return nil, err
