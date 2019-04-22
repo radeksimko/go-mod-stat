@@ -25,7 +25,10 @@ GO111MODULE=off go install github.com/radeksimko/go-mod-stat
 ## Usage
 
 ```
-$ go-mod-stat # run in a folder with go.mod
+$ go-mod-stat --help
+Usage of go-mod-stat:
+  -modfile string
+    	Path to go.mod (default "$PWD/go.mod")
 ```
 
 ## Example output
