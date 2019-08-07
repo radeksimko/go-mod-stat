@@ -2,11 +2,6 @@
 
 To list which dependencies are not go-mod-aware and _may_ cause version conflicts during upgrades.
 
-## Development
-
-`go-src` contains _copy_ of [`cmd/go/internal/modfile`](https://github.com/golang/go/tree/master/src/cmd/go/internal/modfile).
-This is the easiest way to parse `go.mod` file until https://github.com/golang/go/issues/28101 is addressed.
-
 ## Caveats
 
 Go tooling refuses to download module versions which are normally not downloadable/discoverable via `go get -u` (semver-based update).
