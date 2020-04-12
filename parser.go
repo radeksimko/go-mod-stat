@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 
 	"github.com/mitchellh/colorstring"
-	"github.com/radeksimko/mod/modfile"
-	"github.com/radeksimko/mod/module"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 type Parser struct {
